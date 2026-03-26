@@ -30,7 +30,7 @@ public class ActuatorsManager : MonoBehaviour
         coverCoroutine = StartCoroutine(AnimateCover(coverObject, type, targetValue));
     }
 
-IEnumerator AnimateCover(GameObject obj, DeviceType type, float targetValue)
+    IEnumerator AnimateCover(GameObject obj, DeviceType type, float targetValue)
     {
         float duration = 2.0f; // Durata dell'animazione in secondi (regolabile)
         float elapsed = 0;
