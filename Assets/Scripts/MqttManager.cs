@@ -7,11 +7,11 @@ using System;
 public class MqttManager : MonoBehaviour
 {
     private MqttClient client;
-    public string brokerIp = "100.84.227.69"; // Cambia con l'IP del tuo n8n/Broker
+    public string brokerIp = "100.84.227.69"; 
     public string topic = "home/unity/commands";
 
     public ActuatorsManager actuatorsManager;
-    public List<DeviceMapping> registry; // Il tuo "dizionario" di ieri
+    public List<DeviceMapping> registry; 
 
     // Coda per gestire i messaggi tra i thread
     private Queue<string> messageQueue = new Queue<string>();
@@ -55,7 +55,7 @@ public class MqttManager : MonoBehaviour
 
     void ProcessMessage(string json)
     {
-        Debug.Log("Elaborazione comando: " + json);
+        Debug.Log($"json: {json}");
         try {
             MqttCommand cmd = JsonUtility.FromJson<MqttCommand>(json);
             
@@ -66,14 +66,39 @@ public class MqttManager : MonoBehaviour
                      x.haDeviceName == cmd.haDeviceName);
 
             if (map != null) {
-
-                switch (map.deviceType) {
+                DeviceType deviceType = map.deviceType;
+                CommandAction action = cmd.action;
+                switch (deviceType) {
                     case DeviceType.Light:
-                        actuatorsManager.SetLight(map.deviceObject.GetComponent<Light>(), true, cmd.intensity, cmd.colorTemperature);
+                        Light light = map.deviceObject.GetComponent<Light>();
+                        switch (action)
+                        {
+                            case CommandAction.TURN_ON:
+                                actuatorsManager.SetLight(light, true, 100);
+                                break;
+                            case CommandAction.TURN_OFF:
+                                actuatorsManager.SetLight(light, false);
+                                break;
+                            case CommandAction.SET_BRIGHTNESS:
+                                actuatorsManager.SetLight(light, true, cmd.intensity);
+                                break;
+                        }
                         break;
                     case DeviceType.RollerShutter:
                     case DeviceType.DarkeningGlass:
-                        actuatorsManager.SetCover(map.deviceObject, map.deviceType, cmd.percentage);
+                        GameObject ccover = map.deviceObject;
+                        switch (action)
+                        {
+                            case CommandAction.OPEN:
+                                actuatorsManager.SetCover(ccover, deviceType, 100);
+                                break;
+                            case CommandAction.CLOSE:
+                                actuatorsManager.SetCover(ccover, deviceType, 0);
+                                break;
+                            case CommandAction.SET_POSITION:
+                                actuatorsManager.SetCover(ccover, deviceType, cmd.percentage);
+                                break;
+                        }
                         break;
                     case DeviceType.GenericBinary:
                         actuatorsManager.SetBinaries(map.deviceObject, cmd.state);
@@ -85,12 +110,49 @@ public class MqttManager : MonoBehaviour
         }
     }
 }
+public enum DeviceType
+{
+    Light,
+    RollerShutter,
+    DarkeningGlass,
+    GenericBinary,
+    GenericRange
+}
+
+public enum CommandAction
+{
+    TURN_ON,
+    TURN_OFF,
+    TOGGLE,
+    SET_BRIGHTNESS,
+    OPEN,
+    CLOSE,
+    SET_POSITION,
+    SET_TEMPERATURE,
+    SET_HVAC_MODE,
+    PLAY,
+    PAUSE,
+    STOP,
+    VOLUME_SET
+}
+
+[Serializable]
+public class DeviceMapping
+{
+    public string haDeviceName;          
+    public string haRoomName;
+    public DeviceType deviceType;    
+    public GameObject deviceObject; 
+}
+
 
 [Serializable]
 public class MqttCommand 
 {
     public string haDeviceName;
     public string haRoomName;
+    public DeviceType type;
+    public CommandAction action;
     public bool state = false;    
     public int intensity = -1;   
     public float percentage = 0f;   
